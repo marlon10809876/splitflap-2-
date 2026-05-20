@@ -33,89 +33,9 @@ let cells = Array.from({ length: ROWS }, () =>
 let drag = null;
 let flipTimer = null;
 let flipIndex = 0;
-let socket = null;
-let socketConnected = false;
 
 cells[0][0] = "A";
 cells[0][1] = "A";
-
-function getWebSocketUrl(){
-  const protocol = location.protocol === "https:" ? "wss://" : "ws://";
-  return protocol + location.host;
-}
-
-function connectWebSocket(){
-  const url = getWebSocketUrl();
-
-  socket = new WebSocket(url);
-
-  socket.addEventListener("open", () => {
-    socketConnected = true;
-    setConnectionState(true);
-    console.log("WebSocket verbunden:", url);
-
-    sendToServer({
-      type: "client",
-      role: "webapp"
-    });
-  });
-
-  socket.addEventListener("message", (event) => {
-    console.log("Nachricht vom Server:", event.data);
-
-    try {
-      const data = JSON.parse(event.data);
-
-      if(data.type === "ack"){
-        safeText(displayBadge, "Sent");
-        safeClass(displayBadge, "badge green");
-      }
-
-      if(data.type === "esp_status"){
-        safeText(displayBadge, data.value || "ESP");
-        safeClass(displayBadge, data.value === "ESP online" ? "badge green" : "badge red");
-      }
-
-      if(data.type === "status"){
-        safeText(displayBadge, data.value || data.status || "ESP");
-
-        if(data.status === "error"){
-          safeClass(displayBadge, "badge red");
-        }else if(data.status === "done" || data.status === "stopped"){
-          safeClass(displayBadge, "badge green");
-        }else{
-          safeClass(displayBadge, "badge yellow");
-        }
-
-        if(data.status === "done" || data.status === "stopped"){
-          stopFlip();
-          renderGrid();
-          safeText(statusText, "Live");
-        }
-      }
-
-      if(data.type === "error"){
-        safeText(displayBadge, data.value || "Error");
-        safeClass(displayBadge, "badge red");
-      }
-
-    } catch(error) {
-      console.warn("Ungültige Server-Nachricht:", event.data);
-    }
-  });
-
-  socket.addEventListener("close", () => {
-    socketConnected = false;
-    setConnectionState(false);
-    console.warn("WebSocket getrennt. Neuer Versuch in 2 Sekunden.");
-    setTimeout(connectWebSocket, 2000);
-  });
-
-  socket.addEventListener("error", () => {
-    socketConnected = false;
-    setConnectionState(false);
-  });
-}
 
 function setConnectionState(connected){
   if(connected){
@@ -131,14 +51,22 @@ function setConnectionState(connected){
   }
 }
 
-function sendToServer(data){
-  if(!socket || socket.readyState !== WebSocket.OPEN){
-    console.warn("WebSocket ist nicht verbunden.");
-    return false;
-  }
+async function checkConnection(){
+  try {
+    const res = await fetch("/api/status");
 
-  socket.send(JSON.stringify(data));
-  return true;
+    if(!res.ok) throw new Error("Server nicht erreichbar");
+
+    const data = await res.json();
+
+    if(data.ok){
+      setConnectionState(true);
+    }else{
+      setConnectionState(false);
+    }
+  } catch(error) {
+    setConnectionState(false);
+  }
 }
 
 function createGrid(){
@@ -372,12 +300,9 @@ document.querySelectorAll(".widget").forEach(widget => {
   widget.addEventListener("pointerup", endDrag);
   widget.addEventListener("pointercancel", endDrag);
 
-  widget.addEventListener("dblclick", () => {
-    sendCommand({
-      type: "widget",
-      widget: widget.dataset.widget,
-      value: widget.dataset.text
-    });
+  widget.addEventListener("dblclick", async () => {
+    inputText.value = widget.dataset.text || "";
+    await sendCurrentDisplay();
   });
 });
 
@@ -410,59 +335,34 @@ function getGridAsText(){
     .join("\n");
 }
 
-function sendCurrentDisplay(){
+async function sendCurrentDisplay(){
   startFlip();
 
   const textFromInput = inputText.value.trim();
   const gridText = getGridAsText();
 
-  const payload = {
-    type: "display_text",
-    value: textFromInput || gridText,
-    grid: cells,
-    rows: ROWS,
-    cols: COLS,
-    timestamp: Date.now()
-  };
+  const value = textFromInput || gridText;
+  const char = (value.trim().charAt(0) || "_").toUpperCase();
 
-  const sent = sendToServer(payload);
+  try {
+    const res = await fetch("/api/set?char=" + encodeURIComponent(char));
+    const data = await res.json();
 
-  if(!sent){
-    setTimeout(() => {
-      stopFlip();
-      renderGrid();
-      safeText(statusText, "Offline");
-      safeText(displayBadge, "Not sent");
-      safeClass(displayBadge, "badge red");
-    }, 700);
-  }
+    console.log("Gesendet an ESP:", data);
 
-  setTimeout(() => {
-    if(flipTimer){
-      stopFlip();
-      renderGrid();
+    stopFlip();
+    renderGrid();
 
-      if(socketConnected){
-        safeText(statusText, "Live");
-        safeText(displayBadge, "Sent");
-        safeClass(displayBadge, "badge green");
-      }
-    }
-  }, 1800);
-}
+    safeText(statusText, "Live");
+    safeText(displayBadge, "Sent " + char);
+    safeClass(displayBadge, "badge green");
+  } catch(error) {
+    console.error("Sendefehler:", error);
 
-function sendCommand(payload){
-  const sent = sendToServer({
-    ...payload,
-    timestamp: Date.now()
-  });
+    stopFlip();
+    renderGrid();
 
-  if(sent){
-    safeText(statusText, "Sending");
-    safeText(displayBadge, payload.type);
-    safeClass(displayBadge, "badge yellow");
-  }else{
-    safeText(statusText, "Offline");
+    safeText(statusText, "Error");
     safeText(displayBadge, "Not sent");
     safeClass(displayBadge, "badge red");
   }
@@ -475,22 +375,37 @@ sendBtn.addEventListener("click", sendCurrentDisplay);
 // ==========================
 
 document.querySelectorAll(".calBtn").forEach(button => {
-  button.addEventListener("click", () => {
+  button.addEventListener("click", async () => {
     const module = Number(button.dataset.module);
     const input = document.getElementById("calChar" + module);
 
-    const char = (input?.value || "A")
+    const char = (input?.value || "_")
       .trim()
       .toUpperCase()
-      .slice(0, 1);
+      .slice(0, 1) || "_";
 
     console.log("Kalibriere Modul", module, "mit Zeichen", char);
 
-    sendCommand({
-      type: "calibrate",
-      module,
-      char: char || "A"
-    });
+    safeText(statusText, "Calibrating");
+    safeText(displayBadge, "Cal M" + module);
+    safeClass(displayBadge, "badge yellow");
+
+    try {
+      const res = await fetch("/api/calibrate?char=" + encodeURIComponent(char));
+      const data = await res.json();
+
+      console.log("Kalibrierung an ESP gesendet:", data);
+
+      safeText(statusText, "Live");
+      safeText(displayBadge, "Cal sent");
+      safeClass(displayBadge, "badge green");
+    } catch(error) {
+      console.error("Kalibrierungsfehler:", error);
+
+      safeText(statusText, "Error");
+      safeText(displayBadge, "Cal error");
+      safeClass(displayBadge, "badge red");
+    }
   });
 });
 
@@ -499,10 +414,8 @@ const stopBtn = document.getElementById("stopBtn");
 if(stopBtn){
   stopBtn.addEventListener("click", () => {
     console.log("STOP gedrückt");
-
-    sendCommand({
-      type: "stop"
-    });
+    safeText(displayBadge, "Stop nicht verbunden");
+    safeClass(displayBadge, "badge yellow");
   });
 }
 
@@ -555,4 +468,5 @@ async function setChar(char) {
 
 createGrid();
 renderGrid();
-connectWebSocket();
+checkConnection();
+setInterval(checkConnection, 5000);
