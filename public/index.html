@@ -107,7 +107,6 @@ body{
   cursor:pointer;
 }
 
-
 .main{
   min-height:100dvh;
   padding:118px 18px 26px;
@@ -172,12 +171,6 @@ body{
 .tile.active{
   outline:2px solid rgba(255,225,138,.65);
   outline-offset:2px;
-}
-
-@keyframes flipText{
-  0%{opacity:.25;transform:translateY(-4px) scaleY(.7)}
-  50%{opacity:.95;transform:translateY(1px) scaleY(1.12)}
-  100%{opacity:.22;transform:translateY(4px) scaleY(.75)}
 }
 
 .inputCard{
@@ -389,6 +382,57 @@ body{
   color:var(--text);
 }
 
+
+.calRow{
+  display:grid;
+  grid-template-columns:1fr 54px 96px;
+  gap:8px;
+  align-items:center;
+  padding:8px 0;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+
+.calRow:last-of-type{
+  border-bottom:none;
+}
+
+.calInput{
+  height:36px;
+  border-radius:10px;
+  border:1px solid #2c3948;
+  background:#080c12;
+  color:#fff;
+  text-align:center;
+  font-size:16px;
+  font-weight:800;
+  outline:0;
+  text-transform:uppercase;
+}
+
+.calBtn,
+.calStopBtn{
+  height:36px;
+  border-radius:10px;
+  border:1px solid #2c3948;
+  background:rgba(255,255,255,.055);
+  color:#fff;
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.calBtn:hover,
+.calStopBtn:hover{
+  background:rgba(255,255,255,.09);
+}
+
+.calStopBtn{
+  width:100%;
+  margin-top:12px;
+  color:#ff8c8c;
+  border-color:rgba(255,69,69,.35);
+}
+
 @media(max-width:700px){
   .header{padding:16px 16px 8px}
   .status{font-size:19px}
@@ -408,6 +452,7 @@ body{
 </head>
 
 <body>
+
 <header class="header">
   <div class="status">
     <div class="statusDot" id="statusDot"></div>
@@ -463,29 +508,44 @@ body{
 
   <div class="settings">
     <div class="settingGroup">
-  <h3>Calibration</h3>
-  <button class="testBtn" id="calibrate0Btn">Calibrate Module 0</button>
-  <button class="testBtn" id="calibrate1Btn">Calibrate Module 1</button>
-  <button class="testBtn danger" id="stopBtn">Stop</button>
-</div>
-    <div class="settingGroup">
-      <h3>WiFi</h3>
-      <div class="settingLine"><span>Network</span><span>ESP später</span></div>
-      <div class="settingLine"><span>Mode</span><span>WebSocket</span></div>
+      <h3>Device</h3>
+      <div class="settingLine"><span>Server</span><span class="badge red" id="serverBadge">Offline</span></div>
+      <div class="settingLine"><span>Display status</span><span class="badge yellow" id="displayBadge">Waiting</span></div>
+      <div class="settingLine"><span>Modules</span><span>20 × 6 UI</span></div>
     </div>
 
     <div class="settingGroup">
       <h3>Calibration</h3>
-      <div class="settingLine"><span>Zero point</span><span class="badge yellow">Later</span></div>
-      <div class="settingLine"><span>Hall sensors</span><span>ESP-side</span></div>
+
+      <div class="calRow">
+        <span>Module 0</span>
+        <input class="calInput" id="calChar0" maxlength="1" value="A">
+        <button class="calBtn" data-module="0">Calibrate</button>
+      </div>
+
+      <div class="calRow">
+        <span>Module 1</span>
+        <input class="calInput" id="calChar1" maxlength="1" value="A">
+        <button class="calBtn" data-module="1">Calibrate</button>
+      </div>
+
+      <div class="calRow">
+        <span>Module 2</span>
+        <input class="calInput" id="calChar2" maxlength="1" value="A">
+        <button class="calBtn" data-module="2">Calibrate</button>
+      </div>
+
+      <div class="calRow">
+        <span>Module 3</span>
+        <input class="calInput" id="calChar3" maxlength="1" value="A">
+        <button class="calBtn" data-module="3">Calibrate</button>
+      </div>
+
+      <button class="calStopBtn" id="stopBtn">Stop</button>
     </div>
   </div>
 </section>
 
 <script src="app.js"></script>
 </body>
-<<<<<<< HEAD
 </html>
-=======
-</html>
->>>>>>> ac93ea1b6951c31fc2fc2b3f80e69d611932cb26
