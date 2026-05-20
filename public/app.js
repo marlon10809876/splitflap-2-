@@ -364,6 +364,7 @@ document.querySelectorAll(".calBtn").forEach(button => {
     try {
       const res = await fetch("/api/calibrate?char=" + encodeURIComponent(char));
       const data = await res.json();
+      
 
       console.log("Kalibrierung an ESP gesendet:", data);
 
@@ -379,7 +380,31 @@ document.querySelectorAll(".calBtn").forEach(button => {
     }
   });
 });
+app.get("/api/clock", (req, res) => {
+  currentCommand.id++;
+  currentCommand.type = "clock";
+  currentCommand.value = "";
 
+  console.log("CLOCK:", currentCommand);
+
+  res.json({
+    ok: true,
+    command: currentCommand
+  });
+});
+
+app.get("/api/manual", (req, res) => {
+  currentCommand.id++;
+  currentCommand.type = "manual";
+  currentCommand.value = "";
+
+  console.log("MANUAL:", currentCommand);
+
+  res.json({
+    ok: true,
+    command: currentCommand
+  });
+});
 const stopBtn = document.getElementById("stopBtn");
 
 if(stopBtn){
