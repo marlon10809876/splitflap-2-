@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 const express = require("express");
 const http = require("http");
 const path = require("path");
@@ -9,10 +8,8 @@ const server = http.createServer(app);
 
 const PORT = process.env.PORT || 3000;
 
-// Website aus dem public-Ordner ausliefern
 app.use(express.static(path.join(__dirname, "public")));
 
-// WebSocket-Server auf demselben Server
 const wss = new WebSocket.Server({ server });
 
 let espSocket = null;
@@ -49,7 +46,6 @@ wss.on("connection", (socket) => {
 
     console.log("Empfangen:", data);
 
-    // Web-App meldet sich an
     if (data.type === "client" && data.role === "webapp") {
       socket.role = "webapp";
       webClients.add(socket);
@@ -67,7 +63,6 @@ wss.on("connection", (socket) => {
       return;
     }
 
-    // ESP meldet sich an
     if (data.type === "client" && data.role === "esp") {
       socket.role = "esp";
       espSocket = socket;
@@ -87,55 +82,41 @@ wss.on("connection", (socket) => {
       return;
     }
 
-    // Nachricht von Web-App an ESP weiterleiten
-    if (socket.role === "webapp" && data.type === "display_text") {
-      if (
-  socket.role === "webapp" &&
-  ["display_text", "calibrate", "widget", "stop"].includes(data.type)
-) {
-  if (!espSocket || espSocket.readyState !== WebSocket.OPEN) {
-    sendJson(socket, {
-      type: "error",
-      value: "ESP offline"
-    });
+    if (
+      socket.role === "webapp" &&
+      ["display_text", "calibrate", "widget", "stop"].includes(data.type)
+    ) {
+      console.log("Befehl von Web-App an ESP:", data.type);
 
-    broadcastToWebClients({
-      type: "esp_status",
-      value: "ESP offline"
-    });
+      if (!espSocket || espSocket.readyState !== WebSocket.OPEN) {
+        console.log("ESP ist offline");
 
-    return;
-  }
+        sendJson(socket, {
+          type: "error",
+          value: "ESP offline"
+        });
 
-  sendJson(espSocket, data);
+        broadcastToWebClients({
+          type: "esp_status",
+          value: "ESP offline"
+        });
 
-  sendJson(socket, {
-    type: "ack",
-    value: "sent_to_esp",
-    command: data.type
-  });
+        return;
+      }
 
-  return;
-}
+      console.log("Sende an ESP:", data);
 
-      sendJson(espSocket, {
-        type: "display_text",
-        value: data.value,
-        grid: data.grid,
-        rows: data.rows,
-        cols: data.cols,
-        timestamp: data.timestamp
-      });
+      sendJson(espSocket, data);
 
       sendJson(socket, {
         type: "ack",
-        value: "sent_to_esp"
+        value: "sent_to_esp",
+        command: data.type
       });
 
       return;
     }
 
-    // Rückmeldung vom ESP an Web-App
     if (socket.role === "esp") {
       broadcastToWebClients(data);
       return;
@@ -165,174 +146,5 @@ wss.on("connection", (socket) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Split-Flap Server läuft auf http://localhost:${PORT}`);
-=======
-const express = require("express");
-const http = require("http");
-const path = require("path");
-const WebSocket = require("ws");
-
-const app = express();
-const server = http.createServer(app);
-
-const PORT = process.env.PORT || 3000;
-
-// Website aus dem public-Ordner ausliefern
-app.use(express.static(path.join(__dirname, "public")));
-
-// WebSocket-Server auf demselben Server
-const wss = new WebSocket.Server({ server });
-
-let espSocket = null;
-let webClients = new Set();
-
-function sendJson(socket, data) {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify(data));
-    return true;
-  }
-  return false;
-}
-
-function broadcastToWebClients(data) {
-  for (const client of webClients) {
-    sendJson(client, data);
-  }
-}
-
-wss.on("connection", (socket) => {
-  console.log("Neuer WebSocket verbunden");
-
-  socket.role = "unknown";
-
-  socket.on("message", (message) => {
-    let data;
-
-    try {
-      data = JSON.parse(message.toString());
-    } catch (error) {
-      console.log("Ungültige Nachricht:", message.toString());
-      return;
-    }
-
-    console.log("Empfangen:", data);
-
-    // Web-App meldet sich an
-    if (data.type === "client" && data.role === "webapp") {
-      socket.role = "webapp";
-      webClients.add(socket);
-
-      sendJson(socket, {
-        type: "server_status",
-        value: "webapp_connected"
-      });
-
-      sendJson(socket, {
-        type: "esp_status",
-        value: espSocket ? "ESP online" : "ESP offline"
-      });
-
-      return;
-    }
-
-    // ESP meldet sich an
-    if (data.type === "client" && data.role === "esp") {
-      socket.role = "esp";
-      espSocket = socket;
-
-      console.log("ESP verbunden");
-
-      broadcastToWebClients({
-        type: "esp_status",
-        value: "ESP online"
-      });
-
-      sendJson(socket, {
-        type: "server_status",
-        value: "esp_registered"
-      });
-
-      return;
-    }
-
-    // Nachricht von Web-App an ESP weiterleiten
-    if (socket.role === "webapp" && data.type === "display_text") {
-      if (
-  socket.role === "webapp" &&
-  ["display_text", "calibrate", "widget", "stop"].includes(data.type)
-) {
-  if (!espSocket || espSocket.readyState !== WebSocket.OPEN) {
-    sendJson(socket, {
-      type: "error",
-      value: "ESP offline"
-    });
-
-    broadcastToWebClients({
-      type: "esp_status",
-      value: "ESP offline"
-    });
-
-    return;
-  }
-
-  sendJson(espSocket, data);
-
-  sendJson(socket, {
-    type: "ack",
-    value: "sent_to_esp",
-    command: data.type
-  });
-
-  return;
-}
-
-      sendJson(espSocket, {
-        type: "display_text",
-        value: data.value,
-        grid: data.grid,
-        rows: data.rows,
-        cols: data.cols,
-        timestamp: data.timestamp
-      });
-
-      sendJson(socket, {
-        type: "ack",
-        value: "sent_to_esp"
-      });
-
-      return;
-    }
-
-    // Rückmeldung vom ESP an Web-App
-    if (socket.role === "esp") {
-      broadcastToWebClients(data);
-      return;
-    }
-  });
-
-  socket.on("close", () => {
-    console.log("WebSocket getrennt:", socket.role);
-
-    if (socket.role === "webapp") {
-      webClients.delete(socket);
-    }
-
-    if (socket.role === "esp") {
-      espSocket = null;
-
-      broadcastToWebClients({
-        type: "esp_status",
-        value: "ESP offline"
-      });
-    }
-  });
-
-  socket.on("error", (error) => {
-    console.log("WebSocket Fehler:", error.message);
-  });
-});
-
-server.listen(PORT, () => {
-  console.log(`Split-Flap Server läuft auf http://localhost:${PORT}`);
->>>>>>> ac93ea1b6951c31fc2fc2b3f80e69d611932cb26
+  console.log(`Split-Flap Server läuft auf Port ${PORT}`);
 });
