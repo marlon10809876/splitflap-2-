@@ -54,16 +54,10 @@ function setConnectionState(connected){
 async function checkConnection(){
   try {
     const res = await fetch("/api/status");
-
     if(!res.ok) throw new Error("Server nicht erreichbar");
 
     const data = await res.json();
-
-    if(data.ok){
-      setConnectionState(true);
-    }else{
-      setConnectionState(false);
-    }
+    setConnectionState(!!data.ok);
   } catch(error) {
     setConnectionState(false);
   }
@@ -108,19 +102,11 @@ function getTileMetrics(){
   const gridRect = grid.getBoundingClientRect();
   const gap = parseFloat(getComputedStyle(grid).columnGap) || 0;
 
-  return {
-    tileW: rect.width,
-    tileH: rect.height,
-    gap,
-    gridRect
-  };
+  return { tileW: rect.width, tileH: rect.height, gap, gridRect };
 }
 
 function textToLines(text){
-  return text
-    .toUpperCase()
-    .split("\n")
-    .map(line => line.split(""));
+  return text.toUpperCase().split("\n").map(line => line.split(""));
 }
 
 function clearPreview(){
@@ -216,11 +202,7 @@ function beginDrag(text, x, y){
 
   preview(snap.row, snap.col, text);
 
-  drag = {
-    text,
-    ghost,
-    snap
-  };
+  drag = { text, ghost, snap };
 }
 
 function moveDrag(x, y){
@@ -302,7 +284,6 @@ document.querySelectorAll(".widget").forEach(widget => {
 
   widget.addEventListener("dblclick", async () => {
     inputText.value = widget.dataset.text || "";
-    await sendCurrentDisplay();
   });
 });
 
@@ -330,19 +311,16 @@ function stopFlip(){
 }
 
 function getGridAsText(){
-  return cells
-    .map(row => row.map(ch => ch || " ").join(""))
-    .join("\n");
+  return cells.map(row => row.map(ch => ch || " ").join("")).join("\n");
 }
 
 async function sendCurrentDisplay(){
   startFlip();
 
-  const textFromInput = inputText.value.trim();
-  const gridText = getGridAsText();
-
-  const value = textFromInput || gridText;
-  const char = (value.trim().charAt(0) || "_").toUpperCase();
+  // WICHTIG:
+  // Das Textfeld hat keinen Einfluss mehr auf das echte Display.
+  // Gesendet wird nur das Zeichen im ersten Grid-Feld oben links.
+  const char = (cells[0][0] || "_").toUpperCase();
 
   try {
     const res = await fetch("/api/set?char=" + encodeURIComponent(char));
@@ -354,7 +332,7 @@ async function sendCurrentDisplay(){
     renderGrid();
 
     safeText(statusText, "Live");
-    safeText(displayBadge, "Sent " + char);
+    safeText(displayBadge, "Sent " + (char === "_" ? "LEER" : char));
     safeClass(displayBadge, "badge green");
   } catch(error) {
     console.error("Sendefehler:", error);
@@ -370,19 +348,12 @@ async function sendCurrentDisplay(){
 
 sendBtn.addEventListener("click", sendCurrentDisplay);
 
-// ==========================
-// CALIBRATION MODULES
-// ==========================
-
 document.querySelectorAll(".calBtn").forEach(button => {
   button.addEventListener("click", async () => {
     const module = Number(button.dataset.module);
     const input = document.getElementById("calChar" + module);
 
-    const char = (input?.value || "_")
-      .trim()
-      .toUpperCase()
-      .slice(0, 1) || "_";
+    const char = (input?.value || "_").trim().toUpperCase().slice(0, 1) || "_";
 
     console.log("Kalibriere Modul", module, "mit Zeichen", char);
 
