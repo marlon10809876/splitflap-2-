@@ -1,5 +1,5 @@
-const ROWS = 6;
-const COLS = 20;
+const ROWS = 1;
+const COLS = 4;
 
 const grid = document.getElementById("grid");
 const inputText = document.getElementById("inputText");
@@ -36,6 +36,13 @@ let flipIndex = 0;
 
 cells[0][0] = "A";
 cells[0][1] = "A";
+cells[0][2] = "";
+cells[0][3] = "";
+
+function safeChar(ch){
+  if(!ch || ch === " ") return "_";
+  return ch.toUpperCase().slice(0, 1);
+}
 
 function setConnectionState(connected){
   if(connected){
@@ -106,7 +113,8 @@ function getTileMetrics(){
 }
 
 function textToLines(text){
-  return text.toUpperCase().split("\n").map(line => line.split(""));
+  const clean = text.toUpperCase().replace(/\s/g, "");
+  return [clean.slice(0, 4).split("")];
 }
 
 function clearPreview(){
@@ -232,7 +240,7 @@ let pressTimer = null;
 
 dragHandle.addEventListener("pointerdown", event => {
   event.preventDefault();
-  beginDrag(inputText.value || "Aa", event.clientX, event.clientY);
+  beginDrag(inputText.value || "AAAA", event.clientX, event.clientY);
   dragHandle.setPointerCapture(event.pointerId);
 });
 
@@ -283,7 +291,23 @@ document.querySelectorAll(".widget").forEach(widget => {
   widget.addEventListener("pointercancel", endDrag);
 
   widget.addEventListener("dblclick", async () => {
-    inputText.value = widget.dataset.text || "";
+    if(widget.dataset.widget === "clock"){
+      try {
+        const res = await fetch("/api/clock");
+        const data = await res.json();
+        console.log("Clock Mode:", data);
+
+        safeText(statusText, "Live");
+        safeText(displayBadge, "Clock mode");
+        safeClass(displayBadge, "badge green");
+      } catch(error){
+        safeText(statusText, "Error");
+        safeText(displayBadge, "Clock error");
+        safeClass(displayBadge, "badge red");
+      }
+    }else{
+      inputText.value = widget.dataset.text || "";
+    }
   });
 });
 
@@ -310,22 +334,31 @@ function stopFlip(){
   }
 }
 
+function getGridText4(){
+  return [
+    safeChar(cells[0][0]),
+    safeChar(cells[0][1]),
+    safeChar(cells[0][2]),
+    safeChar(cells[0][3])
+  ].join("");
+}
+
 async function sendCurrentDisplay(){
   startFlip();
 
-  const char = (cells[0][0] || "_").toUpperCase();
+  const text = getGridText4();
 
   try {
-    const res = await fetch("/api/set?char=" + encodeURIComponent(char));
+    const res = await fetch("/api/grid?text=" + encodeURIComponent(text));
     const data = await res.json();
 
-    console.log("Gesendet an ESP:", data);
+    console.log("Grid an ESP gesendet:", data);
 
     stopFlip();
     renderGrid();
 
     safeText(statusText, "Live");
-    safeText(displayBadge, "Sent " + (char === "_" ? "LEER" : char));
+    safeText(displayBadge, "Sent " + text.replaceAll("_", " "));
     safeClass(displayBadge, "badge green");
   } catch(error) {
     console.error("Sendefehler:", error);
@@ -350,13 +383,13 @@ document.querySelectorAll(".calPeakBtn").forEach(button => {
     safeClass(displayBadge, "badge yellow");
 
     try {
-      const res = await fetch("/api/calibrate");
+      const res = await fetch("/api/calibrate?module=" + encodeURIComponent(module));
       const data = await res.json();
 
       console.log("Peak-Kalibrierung gestartet:", data);
 
       safeText(statusText, "Live");
-      safeText(displayBadge, "Peak done?");
+      safeText(displayBadge, "Peak M" + module);
       safeClass(displayBadge, "badge yellow");
     } catch(error) {
       console.error("Peak-Kalibrierungsfehler:", error);
@@ -376,17 +409,17 @@ document.querySelectorAll(".calSaveBtn").forEach(button => {
     const char = (input?.value || "_").trim().toUpperCase().slice(0, 1) || "_";
 
     safeText(statusText, "Saving");
-    safeText(displayBadge, "Save " + char);
+    safeText(displayBadge, "Save M" + module);
     safeClass(displayBadge, "badge yellow");
 
     try {
-      const res = await fetch("/api/magnet?char=" + encodeURIComponent(char));
+      const res = await fetch("/api/magnet?module=" + encodeURIComponent(module) + "&char=" + encodeURIComponent(char));
       const data = await res.json();
 
       console.log("Magnet-Zeichen gespeichert:", data);
 
       safeText(statusText, "Live");
-      safeText(displayBadge, "Saved " + (char === "_" ? "LEER" : char));
+      safeText(displayBadge, "Saved M" + module);
       safeClass(displayBadge, "badge green");
     } catch(error) {
       console.error("Magnet-Speicherfehler:", error);
@@ -401,10 +434,30 @@ document.querySelectorAll(".calSaveBtn").forEach(button => {
 const stopBtn = document.getElementById("stopBtn");
 
 if(stopBtn){
-  stopBtn.addEventListener("click", () => {
-    console.log("STOP gedrückt");
-    safeText(displayBadge, "Stop nicht verbunden");
-    safeClass(displayBadge, "badge yellow");
+  stopBtn.addEventListener("click", async () => {
+    try {
+      const res = await fetch("/api/manual");
+      const data = await res.json();
+      console.log("Manual Mode:", data);
+
+      safeText(displayBadge, "Manual");
+      safeClass(displayBadge, "badge yellow");
+    }catch(error){
+      console.error(error);
+    }
+  });
+}
+
+function updateClockWidgetPreview(){
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  const text = hh + mm;
+
+  document.querySelectorAll('[data-widget="clock"]').forEach(widget => {
+    widget.dataset.text = text;
+    const mini = widget.querySelector(".mini");
+    if(mini) mini.textContent = text;
   });
 }
 
@@ -422,6 +475,7 @@ const settingsBtn = document.getElementById("settingsBtn");
 
 if(widgetsBtn){
   widgetsBtn.addEventListener("click", () => {
+    updateClockWidgetPreview();
     showDrawer("widgetsDrawer");
   });
 }
@@ -452,4 +506,7 @@ document.addEventListener("click", event => {
 createGrid();
 renderGrid();
 checkConnection();
+updateClockWidgetPreview();
+
 setInterval(checkConnection, 5000);
+setInterval(updateClockWidgetPreview, 1000);
