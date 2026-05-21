@@ -310,16 +310,9 @@ function stopFlip(){
   }
 }
 
-function getGridAsText(){
-  return cells.map(row => row.map(ch => ch || " ").join("")).join("\n");
-}
-
 async function sendCurrentDisplay(){
   startFlip();
 
-  // WICHTIG:
-  // Das Textfeld hat keinen Einfluss mehr auf das echte Display.
-  // Gesendet wird nur das Zeichen im ersten Grid-Feld oben links.
   const char = (cells[0][0] || "_").toUpperCase();
 
   try {
@@ -348,34 +341,58 @@ async function sendCurrentDisplay(){
 
 sendBtn.addEventListener("click", sendCurrentDisplay);
 
-document.querySelectorAll(".calBtn").forEach(button => {
+document.querySelectorAll(".calPeakBtn").forEach(button => {
+  button.addEventListener("click", async () => {
+    const module = Number(button.dataset.module);
+
+    safeText(statusText, "Calibrating");
+    safeText(displayBadge, "Peak M" + module);
+    safeClass(displayBadge, "badge yellow");
+
+    try {
+      const res = await fetch("/api/calibrate");
+      const data = await res.json();
+
+      console.log("Peak-Kalibrierung gestartet:", data);
+
+      safeText(statusText, "Live");
+      safeText(displayBadge, "Peak done?");
+      safeClass(displayBadge, "badge yellow");
+    } catch(error) {
+      console.error("Peak-Kalibrierungsfehler:", error);
+
+      safeText(statusText, "Error");
+      safeText(displayBadge, "Cal error");
+      safeClass(displayBadge, "badge red");
+    }
+  });
+});
+
+document.querySelectorAll(".calSaveBtn").forEach(button => {
   button.addEventListener("click", async () => {
     const module = Number(button.dataset.module);
     const input = document.getElementById("calChar" + module);
 
     const char = (input?.value || "_").trim().toUpperCase().slice(0, 1) || "_";
 
-    console.log("Kalibriere Modul", module, "mit Zeichen", char);
-
-    safeText(statusText, "Calibrating");
-    safeText(displayBadge, "Cal M" + module);
+    safeText(statusText, "Saving");
+    safeText(displayBadge, "Save " + char);
     safeClass(displayBadge, "badge yellow");
 
     try {
-      const res = await fetch("/api/calibrate?char=" + encodeURIComponent(char));
+      const res = await fetch("/api/magnet?char=" + encodeURIComponent(char));
       const data = await res.json();
-      
 
-      console.log("Kalibrierung an ESP gesendet:", data);
+      console.log("Magnet-Zeichen gespeichert:", data);
 
       safeText(statusText, "Live");
-      safeText(displayBadge, "Cal sent");
+      safeText(displayBadge, "Saved " + (char === "_" ? "LEER" : char));
       safeClass(displayBadge, "badge green");
     } catch(error) {
-      console.error("Kalibrierungsfehler:", error);
+      console.error("Magnet-Speicherfehler:", error);
 
       safeText(statusText, "Error");
-      safeText(displayBadge, "Cal error");
+      safeText(displayBadge, "Save error");
       safeClass(displayBadge, "badge red");
     }
   });
@@ -431,12 +448,6 @@ document.addEventListener("click", event => {
     });
   }
 });
-
-async function setChar(char) {
-  const res = await fetch("/api/set?char=" + encodeURIComponent(char));
-  const data = await res.json();
-  console.log(data);
-}
 
 createGrid();
 renderGrid();

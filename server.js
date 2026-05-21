@@ -28,17 +28,46 @@ app.get("/api/set", (req, res) => {
 });
 
 app.get("/api/calibrate", (req, res) => {
-  const char = req.query.char || "_";
-
   currentCommand.id++;
   currentCommand.type = "cal";
-  currentCommand.value = char;
+  currentCommand.value = "";
 
-  console.log("CAL:", currentCommand);
+  console.log("CAL PEAK:", currentCommand);
 
   res.json({ ok: true, command: currentCommand });
 });
 
+app.get("/api/magnet", (req, res) => {
+  const char = req.query.char || "_";
+
+  currentCommand.id++;
+  currentCommand.type = "magnet";
+  currentCommand.value = char;
+
+  console.log("MAGNET:", currentCommand);
+
+  res.json({ ok: true, command: currentCommand });
+});
+
+app.get("/api/clock", (req, res) => {
+  currentCommand.id++;
+  currentCommand.type = "clock";
+  currentCommand.value = "";
+
+  console.log("CLOCK:", currentCommand);
+
+  res.json({ ok: true, command: currentCommand });
+});
+
+app.get("/api/manual", (req, res) => {
+  currentCommand.id++;
+  currentCommand.type = "manual";
+  currentCommand.value = "";
+
+  console.log("MANUAL:", currentCommand);
+
+  res.json({ ok: true, command: currentCommand });
+});
 
 app.get("/api/command", (req, res) => {
   res.json(currentCommand);
