@@ -380,31 +380,7 @@ document.querySelectorAll(".calBtn").forEach(button => {
     }
   });
 });
-app.get("/api/clock", (req, res) => {
-  currentCommand.id++;
-  currentCommand.type = "clock";
-  currentCommand.value = "";
 
-  console.log("CLOCK:", currentCommand);
-
-  res.json({
-    ok: true,
-    command: currentCommand
-  });
-});
-
-app.get("/api/manual", (req, res) => {
-  currentCommand.id++;
-  currentCommand.type = "manual";
-  currentCommand.value = "";
-
-  console.log("MANUAL:", currentCommand);
-
-  res.json({
-    ok: true,
-    command: currentCommand
-  });
-});
 const stopBtn = document.getElementById("stopBtn");
 
 if(stopBtn){
