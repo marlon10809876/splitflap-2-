@@ -6,12 +6,14 @@ const app = express();
 let currentCommand = {
   id: 0,
   type: "",
+  module: -1,
   value: ""
 };
 
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/api/set", (req, res) => {
+  const module = Number(req.query.module ?? 0);
   const char = req.query.char;
 
   if (!char) {
@@ -20,6 +22,7 @@ app.get("/api/set", (req, res) => {
 
   currentCommand.id++;
   currentCommand.type = "set";
+  currentCommand.module = module;
   currentCommand.value = char;
 
   console.log("SET:", currentCommand);
@@ -27,9 +30,25 @@ app.get("/api/set", (req, res) => {
   res.json({ ok: true, command: currentCommand });
 });
 
+app.get("/api/grid", (req, res) => {
+  const text = (req.query.text || "____").toString().slice(0, 4).padEnd(4, "_");
+
+  currentCommand.id++;
+  currentCommand.type = "grid";
+  currentCommand.module = -1;
+  currentCommand.value = text;
+
+  console.log("GRID:", currentCommand);
+
+  res.json({ ok: true, command: currentCommand });
+});
+
 app.get("/api/calibrate", (req, res) => {
+  const module = Number(req.query.module ?? 0);
+
   currentCommand.id++;
   currentCommand.type = "cal";
+  currentCommand.module = module;
   currentCommand.value = "";
 
   console.log("CAL PEAK:", currentCommand);
@@ -38,10 +57,12 @@ app.get("/api/calibrate", (req, res) => {
 });
 
 app.get("/api/magnet", (req, res) => {
+  const module = Number(req.query.module ?? 0);
   const char = req.query.char || "_";
 
   currentCommand.id++;
   currentCommand.type = "magnet";
+  currentCommand.module = module;
   currentCommand.value = char;
 
   console.log("MAGNET:", currentCommand);
@@ -52,6 +73,7 @@ app.get("/api/magnet", (req, res) => {
 app.get("/api/clock", (req, res) => {
   currentCommand.id++;
   currentCommand.type = "clock";
+  currentCommand.module = -1;
   currentCommand.value = "";
 
   console.log("CLOCK:", currentCommand);
@@ -62,6 +84,7 @@ app.get("/api/clock", (req, res) => {
 app.get("/api/manual", (req, res) => {
   currentCommand.id++;
   currentCommand.type = "manual";
+  currentCommand.module = -1;
   currentCommand.value = "";
 
   console.log("MANUAL:", currentCommand);
